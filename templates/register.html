@@ -1,0 +1,76 @@
+
+{% extends "layout.html" %}
+
+{% block title %}
+Register Quizmaster
+{% endblock %}
+
+{% block style %}
+<style>
+    .form {
+        display: flex;
+        flex-direction: column;
+        width: 30%;
+        margin: auto;
+        padding: 20px;
+        
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .form-group {
+        margin-bottom: 15px;
+        position: center;
+    }
+    .form-label {
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+    .display-1 {
+        text-align: center;
+        margin-top: 70px;
+        margin-bottom: 30px;
+    }
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+    }
+    .form-group:last-child {
+        display: flex;
+        justify-content: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="display-1">Register</div>
+
+<form action="" class="form" method="post">
+    <div class="form-group" id="username">
+        <label for="username" class="form-label">Username</label>
+        <input type="text" name="username" required class="form-control">
+    </div>
+
+    <div class="form-group">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" name="password" required class="form-control">
+    </div>
+    <div class="form-group">
+        <label for="confirm_password" class="form-label">Confirm Password</label>
+        <input type="text" name="password" required class="form-control">
+    </div>
+    <div class="form-group">
+        <label for="name" class="form-label">Name</label>
+        <input type="text" name="name" required class="form-control">
+    </div>
+    <div class="form-group">
+        <label for="Qualification" class="form-label">Academic Qualification</label>
+        <input type="text" name="text" required class="form-control">
+    </div>
+    <div class="form-group">
+        <input type="submit" value="Register" class="btn btn-primary">
+    </div>
+</form>
+{% endblock %}
