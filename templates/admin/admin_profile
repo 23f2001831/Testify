@@ -1,4 +1,3 @@
-{% extends "layout.html" %}
 
 {% block title %}
     Profile Page
@@ -128,8 +127,6 @@
         color: white;
     }
 </style>
-
-<div class="container">
     <div class="profile-header">
         <div class="profile-pic">
             <img src='https://api.dicebear.com/9.x/lorelei/svg?seed={{ user.username }}' alt="Profile Picture">
@@ -140,12 +137,7 @@
             </h1>
         </div>
     </div>
-
     <form action="" method="post" class="form">
-        <div class="form-group">
-            <label for="username" class="form-label">Username</label>
-            <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}">
-        </div>
         <div class="form-group">
             <label for="cpassword" class="form-label">Current Password</label>
             <input type="password" name="cpassword" class="form-control" id="cpassword" required>
@@ -154,19 +146,11 @@
             <label for="password" class="form-label">New Password</label>
             <input type="password" name="password" class="form-control" id="password" required>
         </div>
-        <div class="form-group">
-            <label for="name" class="form-label">Name</label>
-            <input type="text" class="form-control" id="name" name="name" value="{{ user.name }}">
-        </div>
-        <div class="form-group">
-            <label for="reach" class="form-label">Qualification</label>
-            <input type="text6" class="form-control" id="reach" name="reach" value="{{ user.qualification }}">
-        </div>
-
         <div class="btn-group">
             <button type="submit" class="btn btn-primary">Update</button>
             <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">Logout</a>
         </div>
+    {% endif %}
     </form>
 </div>
 {% endblock %}
