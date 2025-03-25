@@ -59,15 +59,22 @@ Register Quizmaster
     </div>
     <div class="form-group">
         <label for="confirm_password" class="form-label">Confirm Password</label>
-        <input type="text" name="password" required class="form-control">
+        <input type="text" name="confirm_password" required class="form-control">
     </div>
     <div class="form-group">
         <label for="name" class="form-label">Name</label>
         <input type="text" name="name" required class="form-control">
     </div>
     <div class="form-group">
-        <label for="Qualification" class="form-label">Academic Qualification</label>
-        <input type="text" name="text" required class="form-control">
+        <label for="qualification" class="form-label">Academic Qualification</label>
+        <select name="qualification" required class="form-control">
+            <option value="" disabled selected>Select your qualification</option>
+            <option value="Bachelor's Degree">Post Graduate (UG+)</option>
+            <option value="High School">Undergraduate (12+)</option>
+            <option value="Master's Degree">Higher Secondary (10+)</option>
+            <option value="Master's Degree">Secondary School(6-10)</option>
+            <option value="PhD">PhD</option>
+        </select>
     </div>
     <div class="form-group">
         <input type="submit" value="Register" class="btn btn-primary">

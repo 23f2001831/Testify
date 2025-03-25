@@ -1,0 +1,72 @@
+{% extends 'admin/admin_layout.html' %}
+
+{% block title %}
+    Manage Users
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center">Manage Users</h1>
+
+    <!-- Active Users Table -->
+    <h2 class="mt-4">Active Users</h2>
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>User ID</th>
+                    <th>Name</th>
+                    <th>No. of Quizzes Done</th>
+                    <th>Average Score</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.scores|length }}</td>
+                    <td>{{ (user.scores|map(attribute='score')|sum / user.scores|length) if user.scores|length > 0 else 0 }}</td>
+                    <td>
+                        <a href="{{ url_for('flag_user', user_id=user.id) }}" class="btn btn-sm btn-warning">Flag</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Flagged Users Table -->
+    <h2 class="mt-4">Flagged Users</h2>
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>User ID</th>
+                    <th>Name</th>
+                    <th>No. of Quizzes Done</th>
+                    <th>Average Score</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in qualify %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.scores|length }}</td>
+                    <td>{{ (user.scores|map(attribute='score')|sum / user.scores|length) if user.scores|length > 0 else 0 }}</td>
+                    <td>
+                        <a href="{{ url_for('unflag_user', user_id=user.id) }}" class="btn btn-sm btn-success">Unflag</a>
+                        <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
