@@ -1,0 +1,112 @@
+{% extends 'user/user_layout.html' %}
+
+{% block title %}
+    User Dashboard
+{% endblock %}
+{% block content %}
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+
+<style>
+    .container {
+        max-width: 1000px;
+    }
+    .dashboard-title {
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+        margin: 20px 0;
+    }
+    .quiz-table {
+        width: 100%;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .btn-view {
+        background-color: #5dade2;
+        color: white;
+        border: none;
+    }
+    .btn-start {
+        background-color: #58d68d;
+        color: white;
+        border: none;
+    }
+</style>
+
+<div class="container mt-3">
+    
+    <!-- Dashboard Title -->
+    <div class="dashboard-title">Live Quizzes</div>
+
+    <!-- Quizzes Table -->
+    <table class="table table-bordered text-center quiz-table">
+        <thead class="table-primary">
+            <tr>
+                <th>ID</th>
+                <th>Quiz Title</th>
+                <th>Chapter</th>
+                <th>Duration (hh:mm)</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for quiz in quizzes %}
+            {% if quiz.is_active %}
+            <tr>
+                <td>{{ quiz.id }}</td>
+                <td>{{ quiz.name }}</td>
+                <td>{{ quiz.chapter.name }}</td>
+                <td>{{ quiz.time_duration }}</td>
+                <td>
+                    <a href="{{ url_for('view_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-view">View</a>
+                    <a href="{{ url_for('attempt_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-start">Start</a>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    
+</div>
+
+<div class="container mt-3">
+    
+    <!-- Dashboard Title -->
+    <div class="dashboard-title">Upcoming Quizzes</div>
+
+    <!-- Quizzes Table -->
+    <table class="table table-bordered text-center quiz-table">
+        <thead class="table-primary">
+            <tr>
+                <th>ID</th>
+                <th>Quiz Title</th>
+                <th>Chapter</th>
+                <th>Duration (hh:mm)</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for quiz in quizzes %}
+            {% if quiz.start_date > current_date %}
+            <tr>
+                <td>{{ quiz.id }}</td>
+                <td>{{ quiz.name }}</td>
+                <td>{{ quiz.chapter.name }}</td>
+                <td>{{ quiz.time_duration }}</td>
+                <td>
+                    <a href="{{ url_for('view_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-view">View</a>
+                    <a href="{{ url_for('attempt_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-start">Start</a>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    
+</div>
+
+
+{% endblock %}

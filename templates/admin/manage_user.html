@@ -59,9 +59,6 @@
                     <td>{{ (user.scores|map(attribute='score')|sum / user.scores|length) if user.scores|length > 0 else 0 }}</td>
                     <td>
                         <a href="{{ url_for('unflag_user', user_id=user.id) }}" class="btn btn-sm btn-success">Unflag</a>
-                        <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display: inline;">
-                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                        </form>
                     </td>
                 </tr>
                 {% endfor %}

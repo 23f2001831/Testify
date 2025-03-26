@@ -1,4 +1,4 @@
-{% extends 'admin/admin_layout.html' %}
+{% extends 'user/user_layout.html' %}
 
 <head>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -82,9 +82,6 @@
         <div class="col-md-6">
             <div class="subject-tile">
                 <h4>{{ quiz.name }}</h4>
-                <button class="details-btn" onclick="toggleDetails(this)">
-                    Details <i class="fas fa-chevron-down"></i>
-                </button>
                 <div class="details-content">
                     <p><strong>Chapter Name:</strong> {{ quiz.chapter.name }}</p>
                     <p><strong>Start Date:</strong> {{ quiz.start_date }}</p>
@@ -92,10 +89,7 @@
                     <p><strong>Time Duration:</strong> {{ quiz.time_duration }}</p>
                     <p><strong>No Of Questions:</strong> {{ quiz.no_of_questions }}</p>
                     <p><strong>Active Status:</strong> {{ quiz.is_active }}</p>
-                    <a href="{{ url_for('edit_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-warning">Edit Quiz</a>
-                    <form action="{{ url_for('delete_quiz', quiz_id=quiz.id) }}" method="POST" style="display: inline;">
-                        <button type="submit" class="btn btn-sm btn-danger">Delete Quiz</button>
-                    </form>
+                    
                 </div>
                 <table class="table table-bordered">
                     <thead>
@@ -127,18 +121,4 @@
     </div>
 </div>
 
-<script>
-    function toggleDetails(button) {
-        const detailsContent = button.nextElementSibling;
-        if (detailsContent.style.display === "none" || detailsContent.style.display === "") {
-            detailsContent.style.display = "block";
-            button.querySelector("i").classList.remove("fa-chevron-down");
-            button.querySelector("i").classList.add("fa-chevron-up");
-        } else {
-            detailsContent.style.display = "none";
-            button.querySelector("i").classList.remove("fa-chevron-up");
-            button.querySelector("i").classList.add("fa-chevron-down");
-        }
-    }
-</script>
 {% endblock %}

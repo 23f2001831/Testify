@@ -6,9 +6,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
-from flask import send_file
-
-
+from datetime import datetime
+import pytz
 
 
 ## Decorators
@@ -74,7 +73,7 @@ def login_post():
     if user.is_admin==True:
         return redirect(url_for('admin_dashboard'))
     else:
-        return redirect(url_for('profile'))
+        return redirect(url_for('user_dashboard'))
 
 @app.route('/logout')
 def logout():
@@ -118,7 +117,7 @@ def register_post():
 @auth_required 
 def profile():
     user=User.query.get(session['user_id'])
-    return render_template('student/profile.html',user=user)
+    return render_template('user/profile.html',user=user)
 
 @app.route('/profile', methods=['POST'])
 @auth_required
@@ -154,15 +153,57 @@ def profile_post():
     flash('Profile updated successfully')
     return redirect(url_for('profile'))
 
-@app.route('/scores')
+@app.route('/user/user_dashboard')
+@auth_required
+def user_dashboard():
+    quizzes=Quiz.query.filter(Quiz.start_date != None).all()
+    ist = pytz.timezone('Asia/Kolkata')  # IST timezone
+    current_date = datetime.now(ist).date()  # Get current IST time
+
+# Ensure start_date and end_date are valid date objects or None
+    return render_template('user/user_dashboard.html',quizzes=quizzes, current_date=current_date)
+
+@app.route('/user/scores')
 @auth_required
 def scores():
-    return render_template('scores.html') 
+    return render_template('user/scores.html') 
 
-@app.route("/summary")
+@app.route("/user/user_summary")
 @auth_required
-def summary():
-    return render_template('summary.html')
+def user_summary():
+    return render_template('user/user_summary.html')
+
+@app.route('/user/user_quiz')
+@auth_required
+def user_quiz():
+    return render_template('user/user_quiz.html')
+
+@app.route('/user/view_quiz/<int:quiz_id>')
+@auth_required
+def view_quiz(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    questions = Questions.query.filter_by(quiz_id=quiz_id).all()
+    return render_template('user/view_quiz.html', quiz=quiz, questions=questions)
+
+@app.route('/user/attempt_quiz/<int:quiz_id>', methods=['GET', 'POST'])
+@auth_required
+def attempt_quiz(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    questions = Questions.query.filter_by(quiz_id=quiz_id).all()
+    if request.method == 'POST':
+        score = 0
+        for question in questions:
+            answer = request.form.get(str(question.id))
+            if answer == question.correct_option:
+                score += 1
+        new_score = Scores(time_stamp_of_attempt=datetime.now(), score=score, quiz_id=quiz_id, user_id=session['user_id'])
+        db.session.add(new_score)
+        db.session.commit()
+        flash('Quiz submitted successfully')
+        return redirect(url_for('user_dashboard'))
+    return render_template('user/attempt_quiz.html', quiz=quiz, questions=questions)
+
+
 
 ## Admin routes 
 
@@ -416,13 +457,31 @@ def edit_quiz(quiz_id):
     usage = 'edit'
 
     if request.method == 'POST':
-        quiz.name = request.form.get('name')
-        quiz.description = request.form.get('description')
-        quiz.chapter_id = request.form.get('chapter_id')
-        quiz.start_date = request.form.get('start_date')
-        quiz.end_date = request.form.get('end_date')
-        quiz.time_duration = request.form.get('time_duration')
-        quiz.is_active = request.form.get('is_active') == 'true'
+        name = request.form.get('quiz_name')
+        description = request.form.get('description')
+        chapter_id = request.form.get('chapter_id')
+        start_date = request.form.get('start_date')
+        end_date = request.form.get('end_date')
+        time_duration = request.form.get('time_duration')
+        is_active = request.form.get('is_active')
+        # Convert start_date and end_date to Python date objects
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+       
+        # Convert time_duration to Python time object
+        try:
+            time_duration = datetime.strptime(time_duration[:5], '%H:%M').time() if time_duration else None
+        except ValueError:
+            flash('Invalid time duration format. Please use HH:MM.')
+            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+        quiz.name = name
+        quiz.description = description
+        quiz.chapter_id = chapter_id
+        quiz.start_date =start_date
+        quiz.end_date = end_date
+        quiz.time_duration = time_duration
+        quiz.is_active =is_active=='true'
 
         db.session.commit()
         flash('Quiz updated successfully')
@@ -542,6 +601,7 @@ def manage_user():
     # Render the template with the correct variables
     return render_template('admin/manage_user.html', users=users, qualify=users_flagged)
 
+#flag user
 @app.route('/admin/flag_user/<int:user_id>')
 @admin_required
 def flag_user(user_id):
@@ -558,15 +618,6 @@ def unflag_user(user_id):
     user.flagged = False
     db.session.commit()
     flash('User unflagged successfully.')
-    return redirect(url_for('manage_user'))
-
-@app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
-@admin_required
-def delete_user(user_id):
-    user = User.query.get_or_404(user_id)
-    db.session.delete(user)
-    db.session.commit()
-    flash('User deleted successfully.')
     return redirect(url_for('manage_user'))
 
 
