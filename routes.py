@@ -1027,7 +1027,7 @@ def admin_summary():
     quiz_students = [data.students_attempted for data in quiz_students_data]
 
     # Flagged vs Unflagged Users (if is_flagged exists)
-    flagged_users = User.query.filter_by(flagged=True).count() if hasattr(User, 'is_flagged') else 0
+    flagged_users = User.query.filter_by(flagged=True).count() if hasattr(User, 'flagged') else 0
     unflagged_users = total_students - flagged_users
 
     # Pass all data to the template

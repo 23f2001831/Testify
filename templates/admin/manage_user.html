@@ -114,7 +114,8 @@
                     <tr>
                         <th>User ID</th>
                         <th>Name</th>
-                        <th>No. of Quizzes Done</th>
+                        <th>Username</th>
+                        <th>No. of Quizzes</th>
                         <th>Total Score</th>
                         <th>Avg Score</th>
                         <th>Actions</th>
@@ -125,6 +126,7 @@
                     <tr>
                         <td>{{ user.id }}</td>
                         <td>{{ user.name }}</td>
+                        <td>{{ user.username }}</td>
                         <td>{{ user.scores|length }}</td>
                         <td>{{ (user.scores|map(attribute='score')|sum ) if user.scores|length > 0 else 0 }}</td>
                         <td>{{ (user.scores|map(attribute='score')|sum / user.scores|length)|round(2) if user.scores|length > 0 else 0 }}</td>
@@ -147,7 +149,8 @@
                     <tr>
                         <th>User ID</th>
                         <th>Name</th>
-                        <th>No. of Quizzes Done</th>
+                        <th>Username</th>
+                        <th>No. of Quizzes</th>
                         <th>Total Score</th>
                         <th>Avg Score</th>
                         <th>Actions</th>
@@ -158,6 +161,7 @@
                     <tr>
                         <td>{{ user.id }}</td>
                         <td>{{ user.name }}</td>
+                        <td>{{ user.username }}</td>
                         <td>{{ user.scores|length }}</td>
                         <td>{{ (user.scores|map(attribute='score')|sum ) if user.scores|length > 0 else 0 }}</td>
                         <td>{{ (user.scores|map(attribute='score')|sum / user.scores|length)|round(2) if user.scores|length > 0 else 0 }}</td>
