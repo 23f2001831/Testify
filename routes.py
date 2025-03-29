@@ -1,12 +1,12 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session,jsonify, make_response, send_file,jsonify 
 from app import app
-from models import db, User, Subject, Chapter, Quiz, Questions, Scores,Category
+from models import db, User, Subject, Chapter, Quiz, Questions, Scores
 from datetime import datetime,timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from sqlalchemy import func
+from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
-from datetime import datetime
+from datetime import time
 import pytz
 
 
@@ -53,16 +53,16 @@ def login_post():
 
     user=User.query.filter_by(username=username).first()
     
-    if user.flagged==True:
-        flash('This account has been banned temporarily, contact admin')
-        return redirect(url_for('login'))
-    
     if not user:
         flash('User details not found')
         return redirect(url_for('login'))
     
     elif not user.check_password(password):
         flash('Incorrect password')
+        return redirect(url_for('login'))
+    
+    if user.flagged==True:
+        flash('This account has been banned temporarily, contact admin')
         return redirect(url_for('login'))
     
     #if login successful
@@ -94,6 +94,14 @@ def register_post():
     confirm_password=request.form.get('confirm_password')
     name=request.form.get('name')
     qualification=request.form.get('qualification')
+    email=request.form.get('email')
+    dob=request.form.get('dob')
+    
+    try:
+        dob = datetime.strptime(dob, '%Y-%m-%d').date() if dob else None
+    except ValueError:
+        flash('Invalid date of birth format. Please use YYYY-MM-DD.')
+        return redirect(url_for('register'))
     
     user=User.query.filter_by(username=username).first()
     if user:
@@ -104,7 +112,7 @@ def register_post():
         flash('Please fill out all the required fields')
         return redirect(url_for('register'))
     
-    new_user=User(username=username, passhash=generate_password_hash(password), name=name, qualification=qualification)
+    new_user=User(username=username, passhash=generate_password_hash(password), name=name, qualification=qualification,dob=dob,email=email)
     db.session.add(new_user)
     db.session.commit()
     
@@ -127,7 +135,15 @@ def profile_post():
     password = request.form.get('password')
     name = request.form.get('name')
     qualification = request.form.get('qualification')
+    email = request.form.get('email')
+    dob = request.form.get('dob')
 
+    try:
+        dob = datetime.strptime(dob, '%Y-%m-%d').date() if dob else None
+    except ValueError:
+        flash('Invalid date of birth format. Please use YYYY-MM-DD.')
+        return redirect(url_for('register'))
+    
     if not username or not cpassword or not password :
         flash('Please fill out all the required fields')
         return redirect(url_for('profile'))
@@ -148,6 +164,8 @@ def profile_post():
     user.passhash = new_password_hash
     user.name = name
     user.qualification = qualification
+    user.email = email
+    user.dob = dob
         
     db.session.commit()
     flash('Profile updated successfully')
@@ -159,52 +177,285 @@ def user_dashboard():
     quizzes=Quiz.query.filter(Quiz.start_date != None).all()
     ist = pytz.timezone('Asia/Kolkata')  # IST timezone
     current_date = datetime.now(ist).date()  # Get current IST time
+    user = User.query.get(session['user_id'])
+    scores = Scores.query.filter_by(user_id=user.id).all()
+    total_attempted = len(scores)
+    avg_score = 0
+    if total_attempted > 0:
+        avg_score = sum(score.score for score in scores) / total_attempted
 
-# Ensure start_date and end_date are valid date objects or None
-    return render_template('user/user_dashboard.html',quizzes=quizzes, current_date=current_date)
+    leaderboard = (
+        db.session.query(
+            User.id,
+            User.name,
+            db.func.sum(Scores.score).label('total_score')
+        )
+        .join(Scores, Scores.user_id == User.id)
+        .group_by(User.id)
+        .order_by(db.func.sum(Scores.score).desc())
+        .all()
+    )
 
-@app.route('/user/scores')
+    # Calculate leaderboard position
+    leaderboard_position = next((index + 1 for index, u in enumerate(leaderboard) if u.id == user.id), None)
+
+    return render_template(
+        'user/user_dashboard.html',
+        quizzes=quizzes,
+        current_date=current_date,
+        user=user,
+        avg_score=avg_score,
+        scores=scores,
+        total_attempted=total_attempted,
+        leaderboard_position=leaderboard_position  # Pass leaderboard position to the template
+    )
+
+@app.route('/user_search', methods=['GET'])
 @auth_required
-def scores():
-    return render_template('user/scores.html') 
+def user_search():
+    query = request.args.get('query', '').strip()  # Get the search query from the URL
+    if not query:
+        flash('Please enter a search term.', 'warning')
+        return redirect(request.referrer or url_for('admin_dashboard'))
 
-@app.route("/user/user_summary")
-@auth_required
-def user_summary():
-    return render_template('user/user_summary.html')
+    # Search across Subjects, Chapters, Quizzes, and Questions
+    subjects = Subject.query.filter(Subject.name.ilike(f'%{query}%')).all()
+    chapters = Chapter.query.filter(Chapter.name.ilike(f'%{query}%')).all()
+    quizzes = Quiz.query.filter(Quiz.name.ilike(f'%{query}%')).all()
+    # Render the search results page
+    return render_template(
+        'user/user_search_results.html',
+        query=query,
+        subjects=subjects,
+        chapters=chapters,
+        quizzes=quizzes
+    )
+
 
 @app.route('/user/user_quiz')
 @auth_required
 def user_quiz():
-    return render_template('user/user_quiz.html')
+    user_id = session.get('user_id')  # Get the logged-in user's ID
+
+    # Fetch all quizzes
+    quizzes = Quiz.query.all()
+
+    # Fetch quizzes already attempted by the user
+    attempted_quiz_ids = (
+        db.session.query(Scores.quiz_id)
+        .filter(Scores.user_id == user_id)
+        .distinct()
+        .all()
+    )
+    # Convert the list of tuples to a flat list of quiz IDs
+    attempted_quiz_ids = [quiz_id[0] for quiz_id in attempted_quiz_ids]
+
+    return render_template(
+        'user/user_quiz.html',
+        quizzes=quizzes,
+        attempted_quiz_ids=attempted_quiz_ids
+    )
 
 @app.route('/user/view_quiz/<int:quiz_id>')
 @auth_required
 def view_quiz(quiz_id):
     quiz = Quiz.query.get_or_404(quiz_id)
-    questions = Questions.query.filter_by(quiz_id=quiz_id).all()
-    return render_template('user/view_quiz.html', quiz=quiz, questions=questions)
+    user_id = session.get('user_id')  # Get the logged-in user's ID
 
-@app.route('/user/attempt_quiz/<int:quiz_id>', methods=['GET', 'POST'])
+    # Check if the user has already attempted this quiz
+    attempted = Scores.query.filter_by(user_id=user_id, quiz_id=quiz_id).first()
+
+    # Set the flag based on whether the quiz has been attempted
+    flag = 'false' if attempted else 'true'
+    return render_template('user/view_quiz.html', quiz=quiz,flag=flag)
+
+
+@app.route('/attempt_quiz/<int:quiz_id>', methods=['GET', 'POST'])
 @auth_required
 def attempt_quiz(quiz_id):
+    user = User.query.get_or_404(session.get('user_id'))
     quiz = Quiz.query.get_or_404(quiz_id)
-    questions = Questions.query.filter_by(quiz_id=quiz_id).all()
-    if request.method == 'POST':
+    questions = Questions.query.filter_by(quiz_id=quiz.id).all()
+    print(str(quiz.time_duration).split(':'))
+
+    if quiz.is_active == False:
+        flash('Quiz is not active')
+        return redirect(url_for('user_quiz'))
+    
+
+    try:
+        if quiz.time_duration:  # Ensure time_duration is not None
+            hours, minutes, seconds= map(int, str(quiz.time_duration).split(":"))
+            quiz_duration = (hours * 60) + minutes  # Convert to total minutes
+        else:
+            quiz_duration = 5  # Default to 0 if time_duration is None
+    except (ValueError, AttributeError):
+        quiz_duration = 5  # Default to 0 if invalid format
+
+    print (quiz_duration)
+    if request.method == "POST":
         score = 0
+        submitted_answers = {}
+        answered_questions = 0
+        total_questions = len(questions)
+
         for question in questions:
-            answer = request.form.get(str(question.id))
-            if answer == question.correct_option:
-                score += 1
-        new_score = Scores(time_stamp_of_attempt=datetime.now(), score=score, quiz_id=quiz_id, user_id=session['user_id'])
+            user_answer = request.form.get(f'question_{question.id}')  # Get user's selected option
+            if user_answer:  # Ensure we correctly capture selected answers
+                submitted_answers[str(question.id)] = user_answer
+            else:
+                submitted_answers[str(question.id)] = "Not Attempted"
+
+            # Check if answer is correct
+            if user_answer :
+                answered_questions += 1
+                if submitted_answers[str(question.id)] == question.correct_option:
+                    score += 1
+
+        # Handle empty submission
+        if answered_questions == 0:
+            flash('You did not answer any questions. Your score is 0.', 'warning')
+        else:
+            flash(f'You answered {answered_questions} out of {total_questions} questions. Your score is {score}/{total_questions}.', 'success')
+
+        score= score/quiz.no_of_questions * 100  # Convert to percentage
+        quiz.total_attempted += 1  # Increment total attempts for the quiz
+        db.session.commit()
+        # Store answers in session to pass them to the results page
+        session['submitted_answers'] = submitted_answers  # Ensure session key is correctly stored
+        new_score = Scores(
+        time_stamp_of_attempt=datetime.now(),
+        score=score,
+        submitted_answers=submitted_answers,
+        quiz_id=quiz_id,
+        user_id=session.get('user_id')  # Use .get() to avoid KeyError if user_id is missing
+        )
         db.session.add(new_score)
         db.session.commit()
-        flash('Quiz submitted successfully')
-        return redirect(url_for('user_dashboard'))
-    return render_template('user/attempt_quiz.html', quiz=quiz, questions=questions)
+
+        return redirect(url_for('scores'))
+
+    return render_template('user/attempt_quiz.html', quiz=quiz, questions=questions, quiz_duration=quiz_duration)
 
 
+@app.route('/user/scores')
+@auth_required
+def scores():
+    scores = Scores.query.filter_by(user_id=session.get('user_id')).order_by(Scores.time_stamp_of_attempt.desc()).all()
+    return render_template('user/scores.html' ,scores=scores) 
 
+@app.route('/user/delete_score/<int:score_id>', methods=['POST'])
+@auth_required
+def delete_score(score_id):
+    score = Scores.query.get_or_404(score_id)
+    db.session.delete(score)
+    db.session.commit()
+    flash('Score deleted successfully')
+    return redirect(url_for('scores'))
+
+@app.route('/user/self_assess/<int:score_id>')
+@auth_required
+def self_assess(score_id):
+    score = Scores.query.get_or_404(score_id)
+    quiz = Quiz.query.get_or_404(score.quiz_id)
+    questions = Questions.query.filter_by(quiz_id=score.quiz_id).all()
+    answers = score.submitted_answers
+
+    return render_template('user/self_assess.html', quiz=quiz, questions=questions, score=score, answers=answers)
+
+@app.route('/user/user_summary')
+@auth_required
+def user_summary():
+    user_id = session.get('user_id')  # Get the logged-in user's ID
+
+    # Fetch user details
+    user = User.query.get_or_404(user_id)
+
+    # Leaderboard: Fetch all users and calculate their average scores
+    leaderboard = (
+        db.session.query(
+            User.id,
+            User.name,
+            db.func.sum(Scores.score).label('total_score'),
+            db.func.count(Scores.id).label('quizzes_attempted')
+        )
+        .join(Scores, Scores.user_id == User.id)
+        .group_by(User.id)
+        .order_by(db.func.sum(Scores.score).desc())
+        .all()
+    )
+
+    # Calculate leaderboard position
+    leaderboard_position = next((index + 1 for index, u in enumerate(leaderboard) if u.id == user_id), None)
+
+    # Subject-wise Performance
+    subject_performance = (
+        db.session.query(
+            Subject.name.label('subject_name'),
+            db.func.avg(Scores.score).label('average_score')
+        )
+        .join(Quiz, Quiz.subject_id == Subject.id)
+        .join(Scores, Scores.quiz_id == Quiz.id)
+        .filter(Scores.user_id == user_id)
+        .group_by(Subject.name)
+        .all()
+    )
+    subject_scores = {subject.subject_name: subject.average_score for subject in subject_performance}
+
+    # Quiz-wise Performance
+    quiz_performance = (
+        db.session.query(
+            Quiz.name.label('quiz_name'),
+            Scores.score.label('score')
+        )
+        .join(Scores, Scores.quiz_id == Quiz.id)
+        .filter(Scores.user_id == user_id)
+        .order_by(Scores.time_stamp_of_attempt)
+        .all()
+    )
+    quiz_labels = [quiz.quiz_name for quiz in quiz_performance]
+    quiz_scores = [quiz.score for quiz in quiz_performance]
+
+    # Month-wise Performance
+    month_performance = (
+        db.session.query(
+            db.func.strftime('%Y-%m', Scores.time_stamp_of_attempt).label('month'),
+            db.func.avg(Scores.score).label('average_score')
+        )
+        .filter(Scores.user_id == user_id)
+        .group_by(db.func.strftime('%Y-%m', Scores.time_stamp_of_attempt))
+        .order_by(db.func.strftime('%Y-%m', Scores.time_stamp_of_attempt))
+        .all()
+    )
+    month_labels = [month.month for month in month_performance]
+    month_scores = [month.average_score for month in month_performance]
+    #no of quiz attended
+
+    # User details
+    quizzes_attended = Scores.query.filter_by(user_id=user_id).count()
+    missed_quizzes = Quiz.query.count() - quizzes_attended
+    user_details = {
+        'name': user.name,
+        'id': user.id,
+        'position': leaderboard_position,
+        'quizzes_attended': quizzes_attended,
+        'average_score': db.session.query(db.func.avg(Scores.score)).filter_by(user_id=user_id).scalar() or 0,
+        'subject_scores': subject_scores,
+        'missed_quizzes': missed_quizzes
+    }
+
+    # Pass data to template
+    return render_template(
+        'user/user_summary.html',
+        leaderboard=leaderboard,
+        user_details=user_details,
+        subject_labels=[subject.subject_name for subject in subject_performance],
+        subject_scores=[subject.average_score for subject in subject_performance],
+        quiz_labels=quiz_labels,
+        quiz_scores=quiz_scores,
+        month_labels=month_labels,
+        month_scores=month_scores
+    )
 ## Admin routes 
 
 @app.route('/admin/dashboard')
@@ -273,8 +524,9 @@ def edit_subject(subject_id):
     subject = Subject.query.get_or_404(subject_id)
     usage = 'edit'
     if request.method == 'POST':
-        subject.name = request.form.get('name')
+        subject.name = request.form.get('subject_name')
         subject.Description = request.form.get('description')
+        subject.category = request.form['category']
 
         if subject.name=='' or subject.Description=='':
             flash('Please fill out all fields')
@@ -282,7 +534,7 @@ def edit_subject(subject_id):
 
         db.session.commit()
         flash('Subject updated successfully')
-        return redirect(url_for('subject'))
+        return redirect(url_for('admin_dashboard'))
 
     return render_template('admin/manage_subject.html', subject=subject, usage='edit')
 
@@ -307,6 +559,17 @@ def delete_subject(subject_id):
     return redirect(url_for('admin_dashboard'))
 
 ### manage chapters
+
+##view chapters
+@app.route('/admin/view_chapter/<int:chapter_id>')
+@admin_required
+@auth_required
+def view_chapter(chapter_id):
+    chapter = Chapter.query.get_or_404(chapter_id)
+    quizzes = Quiz.query.filter_by(chapter_id=chapter.id).all()
+    no_of_quizzes = len(quizzes)
+    return render_template('admin/view_chapter.html', chapter=chapter, quizzes=quizzes, no_of_quizzes=no_of_quizzes)
+
 @app.route('/admin/manage_chapter/<int:subject_id>', methods=['GET','POST'])
 @admin_required
 @auth_required
@@ -356,11 +619,28 @@ def edit_chapter(chapter_id):
 @auth_required
 def delete_chapter(chapter_id):
     chapter = Chapter.query.get_or_404(chapter_id)
+    quizzes = Quiz.query.filter_by(chapter_id=chapter_id).all()  # Fetch all quizzes for the chapter
+
+    # Loop through each quiz and delete related scores and questions
+    for quiz in quizzes:
+        # Delete all scores related to the quiz
+        scores = Scores.query.filter_by(quiz_id=quiz.id).all()
+        for score in scores:
+            db.session.delete(score)
+
+        # Delete all questions related to the quiz
+        questions = Questions.query.filter_by(quiz_id=quiz.id).all()
+        for question in questions:
+            db.session.delete(question)
+
+        # Delete the quiz itself
+        db.session.delete(quiz)
+
+    # Finally, delete the chapter
     db.session.delete(chapter)
     db.session.commit()
     flash('Chapter deleted successfully')
     return redirect(url_for('admin_dashboard'))
-
 ## quiz dashboard
 @app.route('/admin/quiz')
 @admin_required
@@ -379,6 +659,15 @@ def quiz_dashboard():
     if not quizzes:
         flash('No quizzes found, click + to add quizzes')
     return render_template('/admin/quiz.html', quizzes=quizzes,questions=questions)
+
+@app.route('/admin/toggle_quiz_status/<int:quiz_id>', methods=['POST'])
+@admin_required
+def toggle_quiz_status(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    data = request.get_json()
+    quiz.is_active = data.get('is_active', False)
+    db.session.commit()
+    return jsonify({'success': True})
 
 ## Add Quiz
 @app.route('/admin/manage_quiz/add/<int:chapter_id>', methods=['GET', 'POST'])
@@ -408,9 +697,13 @@ def add_quiz(chapter_id):
             flash('Invalid end date format. Please use YYYY-MM-DD.')
             return redirect(url_for('add_quiz', chapter_id=chapter_id))
 
-        # Convert time_duration to Python time object
+         # Validate and parse time_duration
         try:
-            time_duration = datetime.strptime(time_duration, '%H:%M').time() if time_duration else None
+            if time_duration:  # Ensure time_duration is not empty
+                hours, minutes = map(int, time_duration.split(":"))
+                time_duration = time(hour=hours, minute=minutes)  # Format as HH:MM
+            else:
+                time_duration = None  # Default to None if not provided
         except ValueError:
             flash('Invalid time duration format. Please use HH:MM.')
             return redirect(url_for('add_quiz', chapter_id=chapter_id))
@@ -468,9 +761,13 @@ def edit_quiz(quiz_id):
         start_date = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
         end_date = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
        
-        # Convert time_duration to Python time object
+               # Validate and parse time_duration
         try:
-            time_duration = datetime.strptime(time_duration[:5], '%H:%M').time() if time_duration else None
+            if time_duration:  # Ensure time_duration is not empty
+                hours, minutes = map(int, time_duration.split(":"))
+                time_duration = time(hour=hours, minute=minutes)  # Format as HH:MM
+            else:
+                time_duration = None  # Default to None if not provided
         except ValueError:
             flash('Invalid time duration format. Please use HH:MM.')
             return redirect(url_for('edit_quiz', quiz_id=quiz_id))
@@ -495,10 +792,39 @@ def edit_quiz(quiz_id):
 @auth_required
 def delete_quiz(quiz_id):
     quiz = Quiz.query.get_or_404(quiz_id)
-    db.session.delete(quiz)
-    db.session.commit()
-    flash('Quiz deleted successfully')
+
+    try:
+        # Delete all scores related to the quiz
+        scores = Scores.query.filter_by(quiz_id=quiz.id).all()
+        for score in scores:
+            db.session.delete(score)
+
+        # Delete all questions related to the quiz
+        questions = Questions.query.filter_by(quiz_id=quiz.id).all()
+        for question in questions:
+            db.session.delete(question)
+
+        # Delete the quiz itself
+        db.session.delete(quiz)
+
+        # Commit the changes to the database
+        db.session.commit()
+        flash('Quiz and its related data deleted successfully.')
+    except Exception as e:
+        # Rollback in case of an error
+        db.session.rollback()
+        flash(f'An error occurred while deleting the quiz: {str(e)}', 'error')
+
     return redirect(url_for('quiz_dashboard'))
+##view question
+@app.route('/admin/view_question/<int:question_id>')
+@admin_required
+@auth_required
+def view_question(question_id):
+    question = Questions.query.get_or_404(question_id)
+    quiz = Quiz.query.get_or_404(question.quiz_id)
+    return render_template('admin/view_question.html', question=question, quiz=quiz)
+
 
 ### Manage Questions
 @app.route('/admin/manage_question/<int:quiz_id>', methods=['GET', 'POST'])
@@ -516,7 +842,7 @@ def add_question(quiz_id):
         option4 = request.form.get('option4')
         correct_option = request.form.get('correct_option')
 
-        if not title or not question_statement or not option1 or not option2 or not option3 or not option4 or not correct_option:
+        if not question_statement or not option1 or not option2 or not option3 or not option4 or not correct_option:
             flash('Please fill out all fields')
             return redirect(url_for('add_question', quiz_id=quiz_id, usage='add'))
         chapter_id = quiz.chapter_id
@@ -544,7 +870,6 @@ def add_question(quiz_id):
 
     return render_template('admin/manage_question.html', quiz_id=quiz_id, quiz=quiz, usage='add')
 
-
 # Edit Question
 @app.route('/admin/manage_question/edit/<int:question_id>', methods=['GET', 'POST'])
 @admin_required
@@ -561,7 +886,7 @@ def edit_question(question_id):
         question.option4 = request.form.get('option4')
         question.correct_option = request.form.get('correct_option')
 
-        if not question.title or not question.question_statement or not question.option1 or not question.option2 or not question.option3 or not question.option4 or not question.correct_option:
+        if  not question.question_statement or not question.option1 or not question.option2 or not question.option3 or not question.option4 or not question.correct_option:
             flash('Please fill out all fields')
             return redirect(url_for('edit_question', question_id=question_id, usage='edit'))
 
@@ -592,13 +917,27 @@ def delete_question(question_id):
 @app.route('/admin/manage_user')
 @admin_required
 def manage_user():
-    # Fetch active users (not flagged)
-    users = User.query.filter(User.flagged == 0, User.is_admin==False).all()
+    # Fetch active users (not flagged), sorted by average score in descending order
+    users = (
+        db.session.query(User)
+        .outerjoin(Scores, Scores.user_id == User.id)
+        .filter(User.flagged == 0, User.is_admin == False)
+        .group_by(User.id)
+        .order_by(db.func.sum(Scores.score).desc().nullslast())  # Sort by average score, handle nulls
+        .all()
+    )
 
-    # Fetch flagged users
-    users_flagged = User.query.filter(User.flagged == 1, User.is_admin==False).all()
+    # Fetch flagged users, sorted by average score in descending order
+    users_flagged = (
+        db.session.query(User)
+        .outerjoin(Scores, Scores.user_id == User.id)
+        .filter(User.flagged == 1, User.is_admin == False)
+        .group_by(User.id)
+        .order_by(db.func.sum(Scores.score).desc().nullslast())  # Sort by average score, handle nulls
+        .all()
+    )
 
-    # Render the template with the correct variables
+    # Render the template with the sorted users
     return render_template('admin/manage_user.html', users=users, qualify=users_flagged)
 
 #flag user
@@ -621,10 +960,117 @@ def unflag_user(user_id):
     return redirect(url_for('manage_user'))
 
 
-@app.route("/admin/summary")
+@app.route('/admin/summary')
 @admin_required
+@auth_required
 def admin_summary():
-    return render_template('admin/admin_summary.html')
+    # Total Statistics
+    total_students = User.query.count()
+    total_chapters = Chapter.query.count()
+    total_subjects = Subject.query.count()
+    total_quizzes = Quiz.query.count()
+    total_questions = Questions.query.count()
 
+    # Subject-wise Questions
+    subject_questions_data = (
+        db.session.query(
+            Subject.name.label('subject_name'),
+            db.func.count(Questions.id).label('question_count')
+        )
+        .join(Chapter, Chapter.subject_id == Subject.id)
+        .join(Quiz, Quiz.chapter_id == Chapter.id)
+        .join(Questions, Questions.quiz_id == Quiz.id)
+        .group_by(Subject.name)
+        .all()
+    )
+    subject_labels = [data.subject_name for data in subject_questions_data]
+    subject_questions = [data.question_count for data in subject_questions_data]
+    
+    # Subject-wise Quizzes
+    subject_quizzes_data = (
+        db.session.query(
+            Subject.name.label('subject_name'),
+            db.func.count(Quiz.id).label('quiz_count')
+        )
+        .join(Chapter, Chapter.subject_id == Subject.id)
+        .join(Quiz, Quiz.chapter_id == Chapter.id)
+        .group_by(Subject.name)
+        .all()
+    )
+    subject_quizzes = [data.quiz_count for data in subject_quizzes_data]
+    print(subject_quizzes)
+    # Subject-wise Performance (Average Score)
+    subject_performance_data = (
+        db.session.query(
+            Subject.name.label('subject_name'),
+            db.func.avg(Scores.score).label('average_score')
+        )
+        .join(Chapter, Chapter.subject_id == Subject.id)
+        .join(Quiz, Quiz.chapter_id == Chapter.id)
+        .join(Scores, Scores.quiz_id == Quiz.id)
+        .group_by(Subject.name)
+        .all()
+    )
+    subject_scores = [data.average_score or 0 for data in subject_performance_data]
+
+    # Quiz-wise Students Attempted
+    quiz_students_data = (
+        db.session.query(
+            Quiz.name.label('quiz_name'),
+            db.func.count(Scores.user_id).label('students_attempted')
+        )
+        .join(Scores, Scores.quiz_id == Quiz.id)
+        .group_by(Quiz.name)
+        .all()
+    )
+    quiz_labels = [data.quiz_name for data in quiz_students_data]
+    quiz_students = [data.students_attempted for data in quiz_students_data]
+
+    # Flagged vs Unflagged Users (if is_flagged exists)
+    flagged_users = User.query.filter_by(flagged=True).count() if hasattr(User, 'is_flagged') else 0
+    unflagged_users = total_students - flagged_users
+
+    # Pass all data to the template
+    return render_template(
+        'admin/admin_summary.html',
+        total_students=total_students,
+        total_chapters=total_chapters,
+        total_subjects=total_subjects,
+        total_quizzes=total_quizzes,
+        total_questions=total_questions,
+        subject_labels=subject_labels,
+        subject_questions=subject_questions,
+        subject_quizzes=subject_quizzes,
+        subject_scores=subject_scores,
+        quiz_labels=quiz_labels,
+        quiz_students=quiz_students,
+        flagged_users=flagged_users,
+        unflagged_users=unflagged_users
+    )
+@app.route('/search', methods=['GET'])
+@admin_required
+def search():
+    query = request.args.get('query', '').strip()  # Get the search query from the URL
+    if not query:
+        flash('Please enter a search term.', 'warning')
+        return redirect(request.referrer or url_for('admin_dashboard'))
+
+    # Search across Subjects, Chapters, Quizzes, and Questions
+    subjects = Subject.query.filter(Subject.name.ilike(f'%{query}%')).all()
+    chapters = Chapter.query.filter(Chapter.name.ilike(f'%{query}%')).all()
+    quizzes = Quiz.query.filter(Quiz.name.ilike(f'%{query}%')).all()
+    questions = Questions.query.filter(Questions.title.ilike(f'%{query}%')).all() + Questions.query.filter(Questions.question_statement.ilike(f'%{query}%')).all()
+    users = User.query.filter(User.username.ilike(f'%{query}%')).all() + User.query.filter(User.name.ilike(f'%{query}%')).all()
+
+    # Render the search results page
+    return render_template(
+        'admin/admin_search_results.html',
+        query=query,
+        subjects=subjects,
+        chapters=chapters,
+        quizzes=quizzes,
+        questions=questions,
+        users=users
+    )
 
 

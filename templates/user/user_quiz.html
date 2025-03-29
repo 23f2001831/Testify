@@ -7,11 +7,12 @@
 
 {% block content %}
 <style>
-    h1 {
+    h2 {
         text-align: center;
         color: #321710;
         font-size: 3rem;
         margin-bottom: 20px;
+        padding: 10px;
     }
     .subject-tile {
         background: #f8f9fa;
@@ -37,7 +38,7 @@
         cursor: pointer;
     }
     .btn-primary {
-        margin-top: 20px;
+        
         align-items: center;
     }
     h4 {
@@ -63,60 +64,75 @@
         margin-left: 5px;
     }
     .details-content {
-        display: none;
         background-color: #f8f9fa;
-        padding: 10px;
-        border: 1px solid #ddd;
+        padding: 5px;
         border-radius: 5px;
         margin-bottom: 10px;
+        text-align: center;
     }
     .details-content p {
-        margin: 5px 0;
+        margin: 2px 0;
+    }
+    .quiz-div {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+    }
+    .status{
+        font-size: 1.2rem;
+        color: #28a745; /* Green color for active status */
     }
 </style>
 
 <div class="container">
-    <h1>Quiz Management</h1>
+    <h2>Active Quizzes</h2>
     <div class="row">
         {% for quiz in quizzes %}
-        <div class="col-md-6">
+        {% if quiz.is_active == True %}
+        <div class="col-md-4">
             <div class="subject-tile">
                 <h4>{{ quiz.name }}</h4>
                 <div class="details-content">
-                    <p><strong>Chapter Name:</strong> {{ quiz.chapter.name }}</p>
-                    <p><strong>Start Date:</strong> {{ quiz.start_date }}</p>
-                    <p><strong>End Date:</strong> {{ quiz.end_date }}</p>
-                    <p><strong>Time Duration:</strong> {{ quiz.time_duration }}</p>
-                    <p><strong>No Of Questions:</strong> {{ quiz.no_of_questions }}</p>
-                    <p><strong>Active Status:</strong> {{ quiz.is_active }}</p>
+                    <p><strong>Chapter :</strong> {{ quiz.chapter.name }}</p>
+                    <p><strong>Subject :</strong> {{ quiz.subject.name }}</p>
+                    <p><strong>Deadline :</strong> {{ quiz.end_date }}</p>
+                    <p class="quiz-div"><strong>Active Status:</strong><strong class="status"> {{ quiz.is_active }}</strong></p>
+
+                    <a href="{{ url_for('view_quiz', quiz_id=quiz.id) }}" class="btn btn-primary" id="chapter_btn">Details</a>
                     
+                    <!-- Check if the quiz is already attempted -->
+                    {% if quiz.id in attempted_quiz_ids %}
+                    <a href="{{ url_for('attempt_quiz', quiz_id=quiz.id) }}" class="btn btn-warning" id="chapter_btn">Reattempt</a>
+                    {% else %}
+                    <a href="{{ url_for('attempt_quiz', quiz_id=quiz.id) }}" class="btn btn-primary" id="chapter_btn">Start</a>
+                    {% endif %}
                 </div>
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Q_Title</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for question in quiz.questions %}
-                        <tr>
-                            <td>{{ question.id }}</td>
-                            <td>{{ question.title }}</td>
-                            <td>
-                                <a href="{{ url_for('edit_question', question_id=question.id) }}" class="btn btn-sm btn-warning">Edit</a>
-                                <form action="{{ url_for('delete_question', question_id=question.id) }}" method="POST" style="display: inline;">
-                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                <a href="/admin/manage_question/{{ quiz.id }}" class="btn btn-primary" id="chapter_btn">+ Question</a>
             </div>
         </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<div class="container">
+    <h2>Inactive Quizzes</h2>
+    <div class="row">
+        {% for quiz in quizzes %}
+        {% if quiz.is_active == False %}
+        <div class="col-md-4">
+            <div class="subject-tile">
+                <h4>{{ quiz.name }}</h4>
+                <div class="details-content">
+                    <p><strong>Chapter :</strong> {{ quiz.chapter.name }}</p>
+                    <p><strong>Subject :</strong> {{ quiz.subject.name }}</p>
+                    <p><strong>Deadline :</strong> {{ quiz.end_date }}</p>
+                    <p><strong>Active Status:</strong> {{ quiz.is_active }}</p>
+
+                    <a href="{{ url_for('view_quiz', quiz_id=quiz.id) }}" class="btn btn-primary" id="chapter_btn">Details</a>
+                    <a href="{{ url_for('attempt_quiz', quiz_id=quiz.id) }}" class="btn btn-primary disabled" id="chapter_btn">Start</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         {% endfor %}
     </div>
 </div>

@@ -51,7 +51,7 @@
         <form action="" class="form" method="post">
             <div class="form-group">
                 <label for="title" class="form-label">Question Title</label>
-                <input type="text" name="title" required class="form-control">
+                <input type="text" name="title" class="form-control">
             </div>
             <div class="form-group">
                 <label for="question_statement" class="form-label">Question Statement</label>
@@ -76,10 +76,10 @@
             <div class="form-group">
                 <label for="correct_option" class="form-label">Correct Option</label>
                 <select name="correct_option" class="form-control" required>
-                    <option value="option1">Option 1</option>
-                    <option value="option2">Option 2</option>
-                    <option value="option3">Option 3</option>
-                    <option value="option4">Option 4</option>
+                    <option value="1">Option 1</option>
+                    <option value="2">Option 2</option>
+                    <option value="3">Option 3</option>
+                    <option value="4">Option 4</option>
                 </select>
             </div>
             <div class="form-group">
@@ -118,10 +118,10 @@
             <div class="form-group">
                 <label for="correct_option" class="form-label">Correct Option</label>
                 <select name="correct_option" class="form-control" required>
-                    <option value="option1" {% if question.correct_option == 'option1' %}selected{% endif %}>Option 1</option>
-                    <option value="option2" {% if question.correct_option == 'option2' %}selected{% endif %}>Option 2</option>
-                    <option value="option3" {% if question.correct_option == 'option3' %}selected{% endif %}>Option 3</option>
-                    <option value="option4" {% if question.correct_option == 'option4' %}selected{% endif %}>Option 4</option>
+                    <option value="1" {% if question.correct_option == 'option1' %}selected{% endif %}>Option 1</option>
+                    <option value="2" {% if question.correct_option == 'option2' %}selected{% endif %}>Option 2</option>
+                    <option value="3" {% if question.correct_option == 'option3' %}selected{% endif %}>Option 3</option>
+                    <option value="4" {% if question.correct_option == 'option4' %}selected{% endif %}>Option 4</option>
                 </select>
             </div>
             <div class="form-group">

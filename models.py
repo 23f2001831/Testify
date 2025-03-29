@@ -8,9 +8,9 @@ class Subject(db.Model):
     id=db.Column(db.Integer, primary_key=True)
     name=db.Column(db.String(32), unique=True)
     Description=db.Column(db.String(256), nullable=False)
-
-    category=db.Column(db.String(32), db.ForeignKey('category.name'),nullable=False)
+    category=db.Column(db.String(32), nullable=True)
     chapters = db.relationship('Chapter', backref='subject', lazy=True)
+    quizzes = db.relationship('Quiz', backref='subject', lazy=True)  
     
 class Chapter(db.Model):
     id=db.Column(db.Integer, primary_key=True)
@@ -59,24 +59,10 @@ class Scores(db.Model):
     id=db.Column(db.Integer, primary_key=True)
     time_stamp_of_attempt=db.Column(db.DateTime, nullable=False)
     score=db.Column(db.Integer, nullable=False)
-    
+    submitted_answers = db.Column(db.JSON, nullable=True)
     quiz_id=db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
-    
     user_id=db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
-class Category(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    #subjects = db.relationship('Subject', backref='category', lazy=True)
-
-class Feedback(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    quiz_id = db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
-    feedback_text = db.Column(db.Text, nullable=False)
-    rating = db.Column(db.Integer, nullable=True)  # Optional: 1-5 rating
-
-
 class User(db.Model):
     __tablename__='user'
     id = db.Column(db.Integer, primary_key=True)
@@ -84,10 +70,11 @@ class User(db.Model):
     passhash = db.Column(db.String(256), nullable=False)
     name = db.Column(db.String(64), nullable=True)
     qualification = db.Column( db.String(64), nullable=True)
+    email = db.Column(db.String(64), unique=True, nullable=True)
+    dob = db.Column(db.Date, nullable=True)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
     flagged = db.Column(db.Boolean, nullable=False, default=False)
     scores = db.relationship('Scores', backref='user', lazy=True)
-    feedbacks = db.relationship('Feedback', backref='user', lazy=True)
     
 
     @property

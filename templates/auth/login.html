@@ -6,71 +6,152 @@ Login - Quizmaster
 
 {% block style %}
 <style>
-    .form {
-        display: flex;
-        flex-direction: column;
-        width: 30%;
-        margin: auto;
-        padding: 20px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    }
-    .form-group {
-        margin-bottom: 15px;
+    /* General Styling */
+    body {
+        background: url("{{ url_for('static', filename='login_background.jpg') }}") 
+                    no-repeat center center fixed;
+        background-size:cover;
+        height: 100vh; /* Ensure the body height matches the viewport */
+        margin: 0;
+        overflow: hidden; /* Prevent scrolling */
         position: relative;
     }
-    .form-label {
-        font-size: 1em;
-        font-weight: normal;
-    }
-    .display-1 {
-        text-align: center;
-        margin-top: 70px;
-        margin-bottom: 30px;
-    }
-    .btn {
-        padding: 10px 20px;
-        border: none;
-        border-radius: 5px;
-        background-color: #007bff;
-        color: white;
-        cursor: pointer;
-        
-    }
-    .form-group:last-child {
+
+    .login-container {
         display: flex;
-        justify-content: center;
+        justify-content: right;
+        align-items: center;
+        height: 90vh;
     }
+
+    .login-card {
+        background: #ffffff;
+        border-radius: 15px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        padding: 40px 30px;
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+    }
+
+    .login-card h1 {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #333333;
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+        position: relative;
+        text-align: left;
+    }
+
+    .form-label {
+        font-size: 0.9rem;
+        font-weight: bold;
+        color: #555555;
+        margin-bottom: 5px;
+        display: block;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #6a11cb;
+        box-shadow: 0 0 5px rgba(106, 17, 203, 0.5);
+    }
+
     .toggle-password {
         position: absolute;
-        top: 70%;
-        right: 10px;
+        top: 50%;
+        right: 15px;
         transform: translateY(-50%);
         cursor: pointer;
-        color: #007bff;
+        color: #6a11cb;
+        font-size: 1.2rem;
     }
-    .form-control {
-        padding-right: 40px; /* Add space for the eye icon */
+
+    .btn-primary {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #6a11cb, #2575fc);
+        color: white;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #2575fc, #6a11cb);
+        transform: translateY(-2px);
+    }
+
+    .forgot-password {
+        margin-top: 15px;
+        font-size: 0.9rem;
+        color: #6a11cb;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .forgot-password:hover {
+        color: #2575fc;
+    }
+
+    .signup-link {
+        margin-top: 20px;
+        font-size: 0.9rem;
+        color: #555555;
+    }
+
+    .signup-link a {
+        color: #6a11cb;
+        font-weight: bold;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+
+    .signup-link a:hover {
+        color: #2575fc;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="display-1">Login</div>
-
-<form action="" class="form" method="post">
-    <div class="form-group" id="username">
-        <label for="username" class="form-label">Username</label>
-        <input type="text" name="username" required class="form-control">
+<div class="login-container">
+    <div class="login-card">
+        <h1>Login</h1>
+        <form action="" method="post">
+            <div class="form-group">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" name="username" id="username" required class="form-control" placeholder="Enter your username">
+            </div>
+            <div class="form-group">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" name="password" id="password" required class="form-control" placeholder="Enter your password">
+                <i class="fa fa-eye toggle-password" id="togglePassword"></i>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Login" class="btn btn-primary">
+            </div>
+        </form>
+        <div class="signup-link">
+            Don't have an account? <a href="{{ url_for('register') }}">Sign Up</a>
+        </div>
     </div>
-    <div class="form-group">
-        <label for="password" class="form-label">Password</label>
-        <input type="password" id="password" name="password" required class="form-control">
-        <i class="fa fa-eye toggle-password" id="togglePassword"></i>
-    </div>
-    <div class="form-group">
-        <input type="submit" value="Login" class="btn btn-primary">
-    </div>
-</form>
+</div>
 {% endblock %}
 
 {% block script %}
@@ -89,4 +170,3 @@ Login - Quizmaster
     });
 </script>
 {% endblock %}
-

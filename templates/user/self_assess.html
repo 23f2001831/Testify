@@ -1,0 +1,160 @@
+{% extends 'user/user_layout.html' %}
+
+{% block title %}
+    Quiz Review
+{% endblock %}
+
+{% block content %}
+<style>
+    .container.mt-4 {
+        margin-top: 50px;
+        width: 70%;
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    .question-tile {
+        background: white;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .question-number {
+        background: #3498db;
+        color: white;
+        display: inline-block;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 30px;
+        margin-right: 10px;
+    }
+    .question-statement {
+        margin: 10px 0;
+        padding-left: 40px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+    }
+    .options div {
+        margin: 8px 0;
+        padding-left: 40px;
+    }
+    .chosen-option {
+        font-weight: bold;
+        color: #007bff;
+    }
+    .correct-answer {
+        font-size: large;
+        color: #28a745;
+        font-weight: bold;
+        margin-top: 10px;
+        padding-left: 40px;
+    }
+    .score {
+        margin-top: 10px;
+        font-weight: bold;
+        text-align: right;
+    }
+    .total-score {
+        font-size: 1.5rem;
+        font-weight: bold;
+        text-align: right;
+    }
+    .search-bar-container {
+        position: relative;
+    }
+  
+    .search-input {
+        border-radius: 25px; /* Rounded edges */
+        padding: 10px 20px;
+        border: 1px solid #ced4da;
+        transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+  
+    .search-input:focus {
+        outline: none;
+        border-color: #3498db; /* Blue border on focus */
+        box-shadow: 0 0 8px rgba(52, 152, 219, 0.5); /* Blue glow */
+    }
+  
+    .search-btn {
+        background-color: #3498db; /* Modern blue color */
+        color: white;
+        border: none;
+        border-radius: 50%; /* Circular button */
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+  
+    .search-btn:hover {
+        background-color: #1e88e5; /* Darker blue on hover */
+        transform: scale(1.1); /* Slight zoom effect */
+    }
+  
+    .search-btn i {
+        font-size: 1.2rem; /* Slightly larger search icon */
+    }
+    .btn-close-custom {
+        background-color: #e27865; /* Bootstrap secondary gray */
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .btn-close-custom:hover {
+        background-color: #5a6268; /* Darker gray on hover */
+        transform: translateY(-2px); /* Slight lift effect */
+    }
+</style>
+
+<div class="container mt-4">
+    <h2 class="text-center mb-4">Quiz Review</h2>
+    <p class="total-score">Total Score: {{ score.score }}/ 100</p>
+
+    {% for question in questions %}
+    <div class="question-tile">
+        <h5><span class="question-number">{{ loop.index }}</span> Q Title :  {{ question.title }} 
+            <p class="question-statement">Q Statement : {{ question.question_statement }}</p></h5>
+        
+        <div class="options">
+            <p class="question-statement">Chosen Option ( Blue color) : </p>
+            {% set chosen = score.submitted_answers.get(question.id|string, "0") %}
+            {% for i in range(1, 5) %}
+            <div>
+                <input type="radio" disabled {% if i|string == chosen %} checked {% endif %}>
+                <label {% if i|string == chosen %}class="chosen-option"{% endif %}>
+                    {{ question['option' ~ i] }}
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="correct-answer">
+            Correct Answer: {{ question['option' ~ question.correct_option] }} ( Option {{ question.correct_option }})
+        </div>
+        <div class="score">
+            {% if chosen == question.correct_option%}
+                <p> Score : 1 </p>
+            {% else %}
+                <p> Score : 0 </p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="text-center mt-4">
+    <a href="{{ url_for('scores') }}" class="btn btn-secondary btn-close-custom">Close</a>
+</div>
+{% endblock %}
