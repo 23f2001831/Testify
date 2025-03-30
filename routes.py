@@ -108,6 +108,11 @@ def register_post():
         flash('User already exists')
         return redirect(url_for('register'))
     
+    email=User.query.filter_by(email=email).first()
+    if email:
+        flash('Email already exists')
+        return redirect(url_for('register'))
+
     if not username or not password or not confirm_password:
         flash('Please fill out all the required fields')
         return redirect(url_for('register'))
@@ -550,7 +555,12 @@ def delete_subject(subject_id):
         question = Questions.query.filter_by(quiz_id=q.id).all()
         for ques in question:
             db.session.delete(ques)
+        scores = Scores.query.filter_by(quiz_id=q.id).all()
+        for score in scores:
+            db.session.delete(score)
+
         db.session.delete(q)
+        
     for chap in chapter:
         db.session.delete(chap)
     db.session.delete(subject)
