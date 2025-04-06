@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session,jsonify, make_response, send_file,jsonify 
+from flask import Flask,request,jsonify, render_template, request, redirect, url_for, flash, session,jsonify, make_response, send_file,jsonify 
 from app import app
 from models import db, User, Subject, Chapter, Quiz, Questions, Scores
 from datetime import datetime,timedelta
@@ -8,7 +8,12 @@ from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import time
 import pytz
-
+import os
+import re 
+import requests
+from dotenv import load_dotenv
+load_dotenv()
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 
 ## Decorators
 
@@ -287,7 +292,6 @@ def attempt_quiz(quiz_id):
         flash('Quiz is not active')
         return redirect(url_for('user_quiz'))
     
-
     try:
         if quiz.time_duration:  # Ensure time_duration is not None
             hours, minutes, seconds= map(int, str(quiz.time_duration).split(":"))
@@ -1084,3 +1088,266 @@ def search():
     )
 
 
+### AI routes 
+from flask import jsonify, request,Blueprint
+import os
+from google import genai
+from google.genai import types
+from flask import Flask, render_template, request, redirect, url_for, flash, session,jsonify
+from app import app
+from datetime import datetime, date,timedelta
+from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
+import os
+import pytesseract
+from PIL import Image 
+import re
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+
+
+# Set up the Gemini API client
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=GEMINI_API_KEY)
+
+@app.route('/explain_with_ai/<int:question_id>', methods=['GET'])
+@auth_required
+
+def explain_with_ai(question_id):
+
+    try:
+        # Fetch the question from the database
+        question = Questions.query.get_or_404(question_id)
+        correct_option = question.correct_option
+        correct_answer = getattr(question, f"option{correct_option}")
+        question_text = question.question_statement
+
+        # Prepare the prompt for the AI
+        prompt = f"Explain why the correct answer to the following question is correct in a structured format:\n\n" \
+                 f"Question: {question.question_statement}\n" \
+                 f"Options:\n1. {question.option1}\n2. {question.option2}\n3. {question.option3}\n4. {question.option4}\n\n" \
+                 f"Correct Answer: {correct_answer}\n" \
+                 f"Explanation type: precise to medium."
+
+        # Prepare the content for the Gemini API
+        contents = [
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_text(text=prompt),
+                ],
+            ),
+        ]
+
+        # Configure the response
+        generate_content_config = types.GenerateContentConfig(
+            response_mime_type="text/plain",
+        )
+
+        # Call the Gemini API and stream the response
+        explanation = ""
+        for chunk in client.models.generate_content_stream(
+            model="gemini-2.0-flash",
+            contents=contents,
+            config=generate_content_config,
+        ):
+            explanation += chunk.text
+
+        # Generate book recommendations
+        books_prompt = f"Recommend 3 books for learning more about: {question_text}. For each book, provide a brief review (1-2 lines) and explain why someone should buy it."
+        books_contents = [
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_text(text=books_prompt),
+                ],
+            ),
+        ]
+        books_response = client.models.generate_content(
+            contents=books_contents,
+            model="gemini-2.0-flash",
+        )
+        book_recommendations = books_response.text if hasattr(books_response, "text") else "No book recommendations available."
+
+        def clean_text(text):
+            # Convert *bold text* to <strong>bold text</strong>
+            text = re.sub(r'\*(.*?)\*', r'<strong>\1</strong>', text)
+            # Replace single * with <br> to create line breaks
+            text = text.replace('*', '<br>').strip()
+            # Replace ordered list numbers like 1., 2., with <ul><li> tags
+            text = re.sub(r'(\d+)\.\s*', r'<li>', text)  # Convert number+dot to start list item
+            text = text.replace('</li>', '</li>')  # Ensure proper closing of list items
+            text = f"<ul>{text}</ul>"  # Wrap the list items in <ul> tags
+            return text
+
+        # Apply cleaning to explanation and book recommendations
+        cleaned_explanation = clean_text(explanation)
+        cleaned_book_recommendations = clean_text(book_recommendations)
+
+        # Stylish HTML output for explanation
+        styled_explanation = f"""
+            <div style="font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 10px; ">
+                {cleaned_explanation}
+            </div>
+        """
+        styled_recommendations = f"""
+            <div style="font-family: Arial, sans-serif; background-color: #f8f9fa; padding: 10px;">
+                {cleaned_book_recommendations}
+            </div>  
+            """
+
+        # Generate Google search link for book recommendations
+        google_search_link = f"https://www.google.com/search?q=best+books+on+{question_text.replace(' ', '+')}"
+
+        # Generate YouTube search link
+        youtube_search_query = f"best YouTube videos for {question_text}"
+        youtube_search_link = f"https://www.youtube.com/results?search_query={youtube_search_query.replace(' ', '+')}"
+
+        print(styled_explanation, styled_recommendations, google_search_link, youtube_search_link)
+
+        # Return the explanation, book recommendations, and YouTube link
+        return jsonify({
+            "explanation": styled_explanation or "Explanation not available.",
+            "google_books_link": google_search_link,
+            "youtube_search_link": youtube_search_link,
+            "book_recommendations": styled_recommendations or "No book recommendations available."
+        })
+
+    except Exception as e:
+        print("Error generating explanation:", str(e))
+        return jsonify({"error": "Explanation generation failed", "details": str(e)}), 500
+    
+
+
+# ✅ Route to Ask Questions & Generate Quiz
+@app.route('/user/ask_question', methods=['GET', 'POST'])
+def ask_question():
+    if request.method == 'POST':
+        user_question = request.form.get('question', '').strip()
+        difficulty_level = request.form.get('difficulty', 'medium')
+
+        if not user_question:
+            return jsonify({'error': 'No question provided'}), 400
+
+        try:
+            # Prepare the prompt for the AI
+            prompt = f"Generate {difficulty_level} quiz questions on the topic: {user_question}, with answers and explanations."
+
+            # Prepare the content for the Gemini API
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_text(text=prompt),
+                    ],
+                ),
+            ]
+
+            # Call the Gemini API
+            response = client.models.generate_content(
+                contents=contents,
+                model="gemini-2.0-flash",
+            )
+
+            # Parse the response
+            questions_answers = response.text if hasattr(response, "text") else "The AI didn't generate valid responses. Please try again."
+            #print(questions_answers)
+            # Cleaning function to format the text properly
+            def clean_text(text):
+                text = re.sub(r'\*\*(Question \d+:)\*\*', r'<strong>\1</strong>', text)    # Bold formatting  # Bold formatting
+                text = text.replace('*', '').strip()  # Replace * with newline
+                return text
+            cleaned_response = clean_text(questions_answers)
+
+            # Store the context in session for follow-up chat
+            session['chat_context'] = f"Topic: {user_question}\nAI Response: {cleaned_response}"
+
+            return jsonify({"response": cleaned_response})
+
+        except Exception as e:
+            return jsonify({"error": "AI processing failed", "details": str(e)}), 500
+
+    return render_template('user/ask_question.html')
+
+# ✅ Route to Analyze Image and Extract Text
+@app.route('/analyze_image', methods=['POST'])
+def analyze_image():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image uploaded'}), 400
+
+    image_file = request.files['image']
+
+    if image_file.filename == '':
+        return jsonify({'error': 'No image selected'}), 400
+
+    try:
+        # Extract text from the image using Tesseract OCR
+        image = Image.open(image_file)
+        extracted_text = pytesseract.image_to_string(image).strip()
+        print(extracted_text)
+        if not extracted_text:
+            return jsonify({'error': 'No text detected in image'}), 400
+
+        # Use Gemini AI to explain the extracted text
+        prompt = f"Explain in depth the following text:\n{extracted_text}"
+        contents = [
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_text(text=prompt),
+                ],
+            ),
+        ]
+
+        # Call the Gemini API
+        response = client.models.generate_content(
+            contents=contents,
+            model="gemini-2.0-flash",
+        )
+
+        explanation = response.text if hasattr(response, "text") else "The AI didn't generate valid responses. Please try again."
+
+        # Store image analysis in session context for follow-up chat
+        session['chat_context'] = f"Extracted Text: {extracted_text}\nAI Explanation: {explanation}"
+
+        return jsonify({"response": explanation})
+
+    except Exception as e:
+        return jsonify({'error': 'Failed to analyze image', 'details': str(e)}), 500
+    
+
+# ✅ Route to Handle Follow-up Chat (AI Remembers Context)
+@app.route('/continue_chat', methods=['POST'])
+def continue_chat():
+    user_input = request.form.get('chat_input', '').strip()
+    context = session.get('chat_context', '')
+
+    if not user_input:
+        return jsonify({'error': 'No question provided'}), 400
+
+    try:
+        # Prepare the prompt with the conversation context
+        prompt = f"Here is the conversation context:\n{context}\nUser asked: {user_input}\nProvide a meaningful response."
+        contents = [
+            types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_text(text=prompt),
+                ],
+            ),
+        ]
+        # Call the Gemini API
+        response = client.models.generate_content(
+            contents=contents,
+            model="gemini-2.0-flash",
+        )
+
+        ai_response = response.text if hasattr(response, "text") else "The AI didn't generate valid responses. Please try again."
+        print(ai_response)
+        # Update session context with the new conversation
+        session['chat_context'] += f"\nUser: {user_input}\nAI: {ai_response}"
+
+        return jsonify({"response": ai_response})
+
+    except Exception as e:
+        return jsonify({'error': 'AI processing failed', "details": str(e)}), 500

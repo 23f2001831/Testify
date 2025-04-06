@@ -3,7 +3,6 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 db=SQLAlchemy(app)
 
- 
 class Subject(db.Model):
     id=db.Column(db.Integer, primary_key=True)
     name=db.Column(db.String(32), unique=True)
@@ -50,7 +49,7 @@ class Questions(db.Model):
     option3=db.Column(db.String(64), nullable=False)
     option4=db.Column(db.String(64), nullable=False)
     correct_option=db.Column(db.String(64), nullable=False)
-    
+   
     quiz_id=db.Column(db.Integer, db.ForeignKey('quiz.id'), nullable=False)
     
     chapter_id=db.Column(db.Integer, db.ForeignKey('chapter.id'), nullable=False)
