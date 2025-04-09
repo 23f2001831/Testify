@@ -1,8 +1,7 @@
-
 {% extends 'admin/admin_layout.html' %}
-{% block title %}
-{% endblock %}
+{% block title %}{% endblock %}
 {% block content %}
+<head>
     <style>
         h1 {
             text-align: center;
@@ -21,14 +20,15 @@
             display: block;
             margin-bottom: 5px;
             color: #321710;
-            
         }
-        .form-control {
+        math-field {
             width: 100%;
+            min-height: 50px;
             padding: 10px;
-            font-size: 16px;
+            font-size: 18px;
             border-radius: 5px;
             border: 1px solid #ccc;
+            background: white;
         }
         .btn {
             font-size: 16px;
@@ -36,98 +36,231 @@
             border-radius: 5px;
             cursor: pointer;
         }
-        .container{
+        .container {
             margin-top: 50px;
             width: 70%;
             background: #f8f9fa;
             padding: 20px;
             border-radius: 10px;
-
         }
+        .form-control text-field {
+            width: 100%;
+            min-height: 50px;
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background: white;
+        }
+        .form-control {
+            width: 100%;
+            min-height: 50px;
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background: white;
+        }
+        .form-control:focus {
+            border-color: #860505;
+            box-shadow: 0 0 5px rgba(134, 5, 5, 0.5);
+        }
+        .text-field {
+            width: 100%;
+            height: 50px; /* Match the height of the math-field */
+            padding: 10px; /* Match the padding of the math-field */
+            font-size: 18px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background: white;
+            box-sizing: border-box; /* Ensures padding is included in width/height */
+            overflow: hidden; /* Prevents scrollbars */
+            resize: none; /* Disables resizing */
+            vertical-align: top; /* Aligns the text to the top */
+        }
+        
+        .text-field:focus {
+            border-color: #860505; /* Matches the focus color of other fields */
+            box-shadow: 0 0 5px rgba(134, 5, 5, 0.5); /* Adds a subtle glow effect */
+            outline: none; /* Removes the default browser outline */
+        }
+        .toggle-container {
+            display: flex;
+            justify-content: left;
+            align-items: left;
+            margin-bottom: 20px;
+        }
+        
+        .toggle-label {
+            font-size: 18px;
+            font-weight: bold;
+            color: #321710;
+            margin-right: 10px;
+        }
+        
+        #latex-toggle {
+            appearance: none;
+            width: 50px;
+            height: 25px;
+            background: #ccc;
+            border-radius: 15px;
+            position: relative;
+            outline: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        #latex-toggle:checked {
+            background: #860505; /* Active color */
+        }
+        
+        #latex-toggle::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2.5px;
+            left: 2.5px;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        #latex-toggle:checked::before {
+            transform: translateX(25px); /* Move the toggle knob */
+        }
+        
+        /* Headings */
+        h1 {
+            text-align: center;
+            color: #860505;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+        
     </style>
-    {% if usage == 'add' %}
-    <div class="container">
-        <h1>Add Question</h1>
-        <form action="" class="form" method="post">
-            <div class="form-group">
-                <label for="title" class="form-label">Question Title</label>
-                <input type="text" name="title" class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="question_statement" class="form-label">Question Statement</label>
-                <textarea name="question_statement" required class="form-control" rows="4"></textarea>
-            </div>
-            <div class="form-group">
-                <label for="option1" class="form-label">Option 1</label>
-                <input type="text" name="option1" required class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="option2" class="form-label">Option 2</label>
-                <input type="text" name="option2" required class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="option3" class="form-label">Option 3</label>
-                <input type="text" name="option3" required class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="option4" class="form-label">Option 4</label>
-                <input type="text" name="option4" required class="form-control">
-            </div>
-            <div class="form-group">
-                <label for="correct_option" class="form-label">Correct Option</label>
-                <select name="correct_option" class="form-control" required>
-                    <option value="1">Option 1</option>
-                    <option value="2">Option 2</option>
-                    <option value="3">Option 3</option>
-                    <option value="4">Option 4</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <button type="submit" class="btn btn-primary">Add Question</button>
-            </div>
-        </form>
+
+    <!-- MathLive Styles and Scripts -->
+    <link rel="stylesheet" href="https://unpkg.com/mathlive/dist/mathlive.core.css">
+    <link rel="stylesheet" href="https://unpkg.com/mathlive/dist/mathlive.css">
+    <script src="https://unpkg.com/mathlive"></script>
+</head>
+
+<div class="container">
+    <h1>{{ 'Add Question' if usage == 'add' else 'Edit Question' }}</h1>
+
+    <!-- Toggle Switch for LaTeX Mode -->
+    <div class="form-group toggle-container">
+        <label class="toggle-label">Enable LaTeX Mode</label>
+        <input type="checkbox" id="latex-toggle">
     </div>
-    {% elif usage == 'edit' %}
-    <div class="container">
-        <h1>Edit Question</h1>
-        <form action="" class="form" method="post">
-            <div class="form-group">
-                <label for="title" class="form-label">Question Title</label>
-                <input type="text" name="title" required class="form-control" value="{{ question.title }}">
-            </div>
-            <div class="form-group">
-                <label for="question_statement" class="form-label">Question Statement</label>
-                <textarea name="question_statement" required class="form-control" rows="4">{{ question.question_statement }}</textarea>
-            </div>
-            <div class="form-group">
-                <label for="option1" class="form-label">Option 1</label>
-                <input type="text" name="option1" required class="form-control" value="{{ question.option1 }}">
-            </div>
-            <div class="form-group">
-                <label for="option2" class="form-label">Option 2</label>
-                <input type="text" name="option2" required class="form-control" value="{{ question.option2 }}">
-            </div>
-            <div class="form-group">
-                <label for="option3" class="form-label">Option 3</label>
-                <input type="text" name="option3" required class="form-control" value="{{ question.option3 }}">
-            </div>
-            <div class="form-group">
-                <label for="option4" class="form-label">Option 4</label>
-                <input type="text" name="option4" required class="form-control" value="{{ question.option4 }}">
-            </div>
-            <div class="form-group">
-                <label for="correct_option" class="form-label">Correct Option</label>
-                <select name="correct_option" class="form-control" required>
-                    <option value="1" {% if question.correct_option == 'option1' %}selected{% endif %}>Option 1</option>
-                    <option value="2" {% if question.correct_option == 'option2' %}selected{% endif %}>Option 2</option>
-                    <option value="3" {% if question.correct_option == 'option3' %}selected{% endif %}>Option 3</option>
-                    <option value="4" {% if question.correct_option == 'option4' %}selected{% endif %}>Option 4</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <button type="submit" class="btn btn-primary">Update Question</button>
-            </div>
-        </form>
-    </div>
-    {% endif %}
+
+    <form action="" method="post" class="form" onsubmit="syncFields()">
+        <!-- Question Title -->
+        <div class="form-group">
+            <label class="form-label">Question Title</label>
+            <input type="text" name="title" class="form-control" value="{{ question.title if usage == 'edit' else '' }}" required>
+        </div>
+
+        <!-- Question Statement and Options -->
+        {% for field in ['question_statement', 'option1', 'option2', 'option3', 'option4'] %}
+        <div class="form-group">
+            <label class="form-label">{{ field.replace('_', ' ').title() }}</label>
+
+            <!-- LaTeX Mode Field -->
+            <math-field id="{{ field }}" class="latex-field" style="display: none;">
+                {{ question[field] if usage == 'edit' else '' }}
+            </math-field>
+
+            <!-- Plain Text Mode Field -->
+            <input 
+                id="{{ field }}-text" 
+                name="{{ field }}" 
+                class="form-control text-field" 
+                type="text" 
+                style="display: block;" 
+                value="{{ question[field] if usage == 'edit' else '' }}">
+
+            <!-- Hidden Input for Syncing -->
+            <input type="hidden" name="{{ field }}" id="{{ field }}-hidden">
+        </div>
+        {% endfor %}
+
+        <!-- Correct Option -->
+        <div class="form-group">
+            <label class="form-label">Correct Option</label>
+            <select name="correct_option" class="form-control" required>
+                {% for i in range(1, 5) %}
+                <option value="{{ i }}" {% if usage == 'edit' and question.correct_option == i %}selected{% endif %}>Option {{ i }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">{{ 'Add Question' if usage == 'add' else 'Update Question' }}</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Ensure the correct mode is set on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        const isLatexMode = document.getElementById('latex-toggle').checked;
+        const latexFields = document.querySelectorAll('.latex-field');
+        const textFields = document.querySelectorAll('.text-field');
+
+        latexFields.forEach((latexField, index) => {
+            const textField = textFields[index];
+            if (isLatexMode) {
+                textField.style.display = 'none';
+                latexField.style.display = 'block';
+            } else {
+                latexField.style.display = 'none';
+                textField.style.display = 'block';
+            }
+        });
+    });
+
+    // Toggle between LaTeX and Plain Text Mode
+    document.getElementById('latex-toggle').addEventListener('change', function () {
+        const isLatexMode = this.checked;
+        const latexFields = document.querySelectorAll('.latex-field');
+        const textFields = document.querySelectorAll('.text-field');
+
+        latexFields.forEach((latexField, index) => {
+            const textField = textFields[index];
+            if (isLatexMode) {
+                textField.style.display = 'none';
+                latexField.style.display = 'block';
+                latexField.setValue(textField.value); // Sync plain text to LaTeX field
+            } else {
+                latexField.style.display = 'none';
+                textField.style.display = 'block';
+                textField.value = latexField.getValue('latex'); // Sync LaTeX to plain text field
+            }
+        });
+    });
+
+    // Sync Fields Before Form Submission
+    function syncFields() {
+        const latexFields = document.querySelectorAll('.latex-field');
+        const textFields = document.querySelectorAll('.text-field');
+        const hiddenInputs = document.querySelectorAll('input[type="hidden"]');
+        const isLatexMode = document.getElementById('latex-toggle').checked;
+
+        latexFields.forEach((latexField, index) => {
+            const textField = textFields[index];
+            const hiddenInput = hiddenInputs[index];
+            if (isLatexMode) {
+                hiddenInput.value = latexField.getValue('latex'); // Sync LaTeX content
+            } else {
+                hiddenInput.value = textField.value; // Sync plain text content
+            }
+        });
+    }
+</script>
+
 {% endblock %}

@@ -87,24 +87,24 @@
     <form id="quizForm" method="POST" action="{{ url_for('attempt_quiz', quiz_id=quiz.id) }}">
         {% for question in questions %}
         <div class="question-tile">
-            <h5>Q{{ loop.index }}:<p class="question-statement">{{ question.question_statement }}</p></h5>
+            <h5>Q{{ loop.index }}:
+                <p class="question-statement">
+                    {% if question.question_statement.startswith('\\') %}
+                    <span class="mathjax-latex">\( {{ question.question_statement }} \)</span>
+                    {% else %}
+                    {{ question.question_statement }}
+                    {% endif %}
+                </p>
+            </h5>
             <div class="options">
+                {% for i in range(1, 5) %}
                 <div>
-                    <input type="radio" name="question_{{ question.id }}" value="1" id="q{{ question.id }}_1">
-                    <label for="q{{ question.id }}_1">{{ question.option1 }}</label>
+                    <input type="radio" name="question_{{ question.id }}" value="{{ i }}" id="q{{ question.id }}_{{ i }}">
+                    <label for="q{{ question.id }}_{{ i }}" class="mathjax-latex">
+                        \( {{ question['option' ~ i] }} \)
+                    </label>
                 </div>
-                <div>
-                    <input type="radio" name="question_{{ question.id }}" value="2" id="q{{ question.id }}_2">
-                    <label for="q{{ question.id }}_2">{{ question.option2 }}</label>
-                </div>
-                <div>
-                    <input type="radio" name="question_{{ question.id }}" value="3" id="q{{ question.id }}_3">
-                    <label for="q{{ question.id }}_3">{{ question.option3 }}</label>
-                </div>
-                <div>
-                    <input type="radio" name="question_{{ question.id }}" value="4" id="q{{ question.id }}_4">
-                    <label for="q{{ question.id }}_4">{{ question.option4 }}</label>
-                </div>
+                {% endfor %}
             </div>
         </div>
         {% endfor %}
@@ -115,6 +115,8 @@
     </form>
 </div>
 
+<!-- Include MathJax -->
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <script>
     let timeLeft = {{ quiz_duration }} * 60; // Convert minutes to seconds
 
@@ -132,7 +134,13 @@
         }
     }
 
-    document.addEventListener("DOMContentLoaded", updateTimer);
+    document.addEventListener("DOMContentLoaded", function () {
+        // Render LaTeX using MathJax
+        MathJax.typesetPromise().catch(function (err) {
+            console.error("MathJax rendering error:", err);
+        });
+        updateTimer(); // Start the timer
+    });
 </script>
 
 {% endblock %}

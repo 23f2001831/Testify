@@ -199,8 +199,8 @@ Search Results for "{{ query }}"
         <p><strong>Quiz Name:</strong> {{ question.quiz.name }}</p>
         <p><strong>Question ID:</strong> {{ question.id }}</p>
         <p><strong>Question Title:</strong> {{ question.title }}</p>
-        <p><strong>Question Statement:</strong> {{ question.question_statement }}</p>
-        <p><strong>Option 1:</strong> {{ question.option1 }}</p>
+        <p class="mathjax-latex"></p><strong>Question Statement:</strong> {{ question.question_statement }}</p>
+        <p ><strong>Option 1:</strong> {{ question.option1 }}</p>
         <p><strong>Option 2:</strong> {{ question.option2 }}</p>
         <p><strong>Option 3:</strong> {{ question.option3 }}</p>
         <p><strong>Option 4:</strong> {{ question.option4 }}</p>
@@ -250,6 +250,13 @@ Search Results for "{{ query }}"
             button.querySelector("i").classList.add("fa-chevron-down");
         }
     }
+    // Function to render LaTeX using MathJax
+    document.addEventListener("DOMContentLoaded", function () {
+        MathJax.typesetPromise().catch(function (err) {
+            console.error("MathJax rendering error:", err);
+        });
+    });
+
 </script>
 
 {% endblock %}
